@@ -83,6 +83,25 @@ echo "Installing CEC Scheduler to: $INSTALL_DIR"
 # Create install dir
 mkdir -p "$INSTALL_DIR"
 
+# Install OS package dependencies (cec-utils) unless disabled via --no-deps
+if [[ $INSTALL_DEPS -eq 1 ]]; then
+  if command -v apt-get >/dev/null 2>&1; then
+    if dpkg -s cec-utils >/dev/null 2>&1; then
+      echo "CEC package 'cec-utils' already installed"
+    else
+      echo "Installing OS package dependency: cec-utils"
+      # Non-interactive install
+      export DEBIAN_FRONTEND=noninteractive
+      apt-get update -qq
+      apt-get install -y cec-utils
+    fi
+  else
+    echo "apt-get not found; skipping installation of 'cec-utils'"
+  fi
+else
+  echo "Skipping installation of OS package dependency 'cec-utils' (--no-deps)"
+fi
+
 # Copy python script
 cp -v cec_scheduler.py "$INSTALL_DIR/"
 chmod +x "$INSTALL_DIR/cec_scheduler.py"
