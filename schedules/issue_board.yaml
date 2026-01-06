@@ -14,7 +14,7 @@ commands:
   - name: "Weekend TV on"
     time: "8:00"
     commands: ["on 0.0.0.0"]
-    days: [sat]
+    days: [sat,sun]
 
   - name: "Turn TV off for night"
     time: "21:00"
