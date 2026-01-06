@@ -9,7 +9,8 @@ After=network.target
 User={{SERVICE_USER}}
 Group={{SERVICE_USER}}
 WorkingDirectory={{INSTALL_DIR}}
-ExecStart=/usr/bin/python3 {{INSTALL_DIR}}/cec_scheduler.py --config {{INSTALL_DIR}}/cec_schedule.yaml
+# Use the configured python (installer will replace {{PYTHON_BIN}})
+ExecStart={{PYTHON_BIN}} {{INSTALL_DIR}}/cec_scheduler.py --config {{INSTALL_DIR}}/cec_schedule.yaml
 Restart=on-failure
 Environment=PYTHONUNBUFFERED=1
 
