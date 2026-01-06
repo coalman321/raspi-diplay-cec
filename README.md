@@ -67,6 +67,9 @@ The installer does:
 - installs the systemd unit at `/etc/systemd/system/cec-scheduler.service` from the included template
 - runs `systemctl daemon-reload` and `systemctl enable --now cec-scheduler.service` (unless `--no-start`)
 
+Command delay:
+- You can add a per-item `command_delay` setting (seconds) which is the delay between running multiple commands in a single schedule entry. The global default is `command_delay: 1.0` (seconds) which can be set at the top-level of your YAML file. This helps ensure devices have time to process one command before the next is sent.
+
 You can inspect the example unit in `cec-scheduler.service` — replace `{{INSTALL_DIR}}` and `{{SERVICE_USER}}` if you edit it manually.
 
 Logs:

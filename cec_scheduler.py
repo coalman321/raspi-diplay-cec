@@ -39,6 +39,7 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+import time
 
 import yaml
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -80,23 +81,26 @@ def parse_time(t: str) -> tuple[int, int, int]:
     return h, m, s
 
 
-def run_cec_client(cec_client_path: str, stdin_text: str, dry_run: bool = False) -> int:
+def run_cec_client(cec_client_path: str, stdin_text: str, dry_run: bool = False) -> tuple[int, str, str]:
+    """Runs cec-client with the provided stdin and returns (returncode, stdout, stderr)."""
     LOG.debug("Will run cec-client: %s; stdin: %s", cec_client_path, stdin_text.strip())
     if dry_run:
         print(f"DRY-RUN: {cec_client_path} -s -d 1 <<< {stdin_text!r}")
-        return 0
+        return 0, "", ""
 
     try:
         p = subprocess.run([cec_client_path, "-s", "-d", "1"], input=stdin_text, text=True, capture_output=True)
+        stdout = p.stdout or ""
+        stderr = p.stderr or ""
         LOG.debug("cec-client exited: %s", p.returncode)
-        if p.stdout:
-            LOG.debug("cec-client stdout: %s", p.stdout.strip())
-        if p.stderr:
-            LOG.debug("cec-client stderr: %s", p.stderr.strip())
-        return p.returncode
+        if stdout.strip():
+            LOG.debug("cec-client stdout: %s", stdout.strip())
+        if stderr.strip():
+            LOG.debug("cec-client stderr: %s", stderr.strip())
+        return p.returncode, stdout, stderr
     except FileNotFoundError:
         LOG.error("cec-client not found at %s", cec_client_path)
-        return 127
+        return 127, "", ""
 
 
 def build_stdin_for_command(cmd: str, device: str) -> str:
@@ -117,6 +121,8 @@ def schedule_commands(scheduler: BackgroundScheduler, cfg: Dict[str, Any], dry_r
     if not raw_cmds:
         LOG.warning("No commands found in configuration")
 
+    global_delay = float(cfg.get("command_delay", 1.0))
+
     for idx, item in enumerate(raw_cmds):
         # Support either 'commands' (list) or legacy 'command' (string)
         raw_commands = item.get("commands")
@@ -128,6 +134,9 @@ def schedule_commands(scheduler: BackgroundScheduler, cfg: Dict[str, Any], dry_r
                 continue
         # Normalize to list of strings
         commands_list = [str(c) for c in raw_commands] if isinstance(raw_commands, (list, tuple)) else [str(raw_commands)]
+
+        # Per-item delay (seconds) between commands
+        item_delay = float(item.get("command_delay", global_delay))
 
         sc = ScheduledCommand(
             time=item["time"],
@@ -145,16 +154,23 @@ def schedule_commands(scheduler: BackgroundScheduler, cfg: Dict[str, Any], dry_r
         # Ensure the trigger uses the scheduler's timezone (local time)
         trigger = CronTrigger(hour=h, minute=m, second=s, day_of_week=day_of_week, timezone=scheduler.timezone)
 
-        def job_wrapper(sc=sc, device=device, cec_client_path=cec_client_path, dry_run=dry_run):
+        def job_wrapper(sc=sc, device=device, cec_client_path=cec_client_path, dry_run=dry_run, item_delay=item_delay):
             LOG.info("Executing scheduled job '%s' at %s (commands=%s)", sc.name, datetime.now().astimezone(), sc.commands)
-            for cmd in sc.commands:
-                LOG.info(" -> running command: %s", cmd)
+            for i, cmd in enumerate(sc.commands):
+                LOG.info("Starting command %d/%d: %s", i + 1, len(sc.commands), cmd)
                 stdin = build_stdin_for_command(cmd, device)
-                rc = run_cec_client(cec_client_path, stdin, dry_run=dry_run)
+                rc, out, err = run_cec_client(cec_client_path, stdin, dry_run=dry_run)
                 if rc == 0:
                     LOG.info("Command '%s' triggered successfully for device %s at %s", cmd, device, datetime.now().astimezone())
+                    if out.strip():
+                        LOG.info("Command output: %s", out.strip())
                 else:
-                    LOG.warning("Command '%s' returned non-zero exit status %s", cmd, rc)
+                    LOG.warning("Command '%s' returned non-zero exit status %s; stderr: %s", cmd, rc, err.strip())
+
+                # Delay before the next command if applicable
+                if i < len(sc.commands) - 1 and item_delay > 0:
+                    LOG.debug("Sleeping %.2fs before next command", item_delay)
+                    time.sleep(item_delay)
 
         scheduler.add_job(job_wrapper, trigger=trigger, id=f"job-{idx}", name=sc.name)
         LOG.info("Scheduled '%s' at %s (days: %s) commands: %s", sc.name, sc.time, sc.days or 'everyday', sc.commands)
