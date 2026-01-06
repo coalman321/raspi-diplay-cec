@@ -1,0 +1,25 @@
+# Example CEC schedule config
+# device: logical address (0 is typically TV) or a target as expected by cec-client
+# cec_client_path: optional absolute path to cec-client binary
+
+device: 0
+cec_client_path: /usr/bin/cec-client
+
+commands:
+  - name: "Turn TV on"
+    time: "15:00"
+    commands: ["on"]
+    days: [mon,tue,wed,thu,fri]
+
+  - name: "Turn TV off for night"
+    time: "20:00"
+    commands: ["standby"]
+    # defaults to every day if `days` omitted
+
+  - name: "Send raw tx example"
+    time: "12:00"
+    commands: ["tx 40:44:41:00"]  # example raw tx if you need custom opcodes
+
+  - name: "Power cycle"
+    time: "03:00"
+    commands: ["standby", "on"]  # run multiple commands in order

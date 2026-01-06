@@ -1,0 +1,17 @@
+# Example systemd unit for CEC Scheduler
+# Customize USER and WorkingDirectory or let the installer replace the placeholders.
+[Unit]
+Description=CEC Scheduler
+After=network.target
+
+[Service]
+# Replace with a non-root user to run the service (e.g. pi)
+User={{SERVICE_USER}}
+Group={{SERVICE_USER}}
+WorkingDirectory={{INSTALL_DIR}}
+ExecStart=/usr/bin/python3 {{INSTALL_DIR}}/cec_scheduler.py --config {{INSTALL_DIR}}/cec_schedule.yaml
+Restart=on-failure
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
