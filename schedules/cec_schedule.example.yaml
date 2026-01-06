@@ -5,6 +5,10 @@
 device: 0
 cec_client_path: /usr/bin/cec-client
 
+# Default delay between multiple commands in a single schedule item (seconds)
+# Can be overridden per-item with 'command_delay'
+command_delay: 1.0
+
 commands:
   - name: "Turn TV on"
     time: "15:00"

@@ -5,17 +5,19 @@
 device: 0
 cec_client_path: /usr/bin/cec-client
 
+# Default delay between multiple commands in a single schedule item (seconds)
+# can be overridden per-item with 'command_delay'
+command_delay: 5.0
+
 commands:
   - name: "Weekday TV on"
     time: "14:00"
     commands: ["on 0.0.0.0", "as 0.0.0.0"]
-    command_delay: 5.0
     days: [mon,tue,wed,thu,fri]
 
   - name: "Weekend TV on"
     time: "8:00"
     commands: ["on 0.0.0.0", "as 0.0.0.0"]
-    command_delay: 5.0
     days: [sat,sun]
 
   - name: "Turn TV off for night"
